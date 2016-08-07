@@ -2,113 +2,79 @@
 
 using System;
 using System.IO;
-using Microsoft.Win32;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
-using PogoLocationFeeder.Common;
-using PogoLocationFeeder.Helper;
+using System.Collections.Generic;
 
 #endregion
 
-namespace PogoLocationFeeder.Config
+namespace PoGo.LocationFeeder.Settings
 {
     public class GlobalSettings
     {
-        public static bool ThreadPause = false;
-        public static GlobalSettings Settings;
-        public static bool Gui = false;
-        public static IOutput Output;
-        public static int Port = 16969;
-        public static bool UsePokeSnipers = false;
-        public static bool UseTrackemon = false;
-        public static bool UsePokeSpawns = false;
-        public static string PokeSnipers2Exe = "";
-        public static int RemoveAfter = 15;
-        public static int ShowLimit = 30;
-        public static bool UsePokezz = false;
+        //public ulong ServerId = 206065054846681088;
+        public List<string> ServerChannels = new List<string> { "sniping", "high_iv_pokemon", "rare_pokemon" };
+        public string DiscordToken = "";
+        public int Port = 16969;
+        public bool useToken = false;
+        public string DiscordUser = "";
+        public string DiscordPassword = "";
 
-        public static bool SniperVisibility => IsOneClickSnipeSupported();
         public static GlobalSettings Default => new GlobalSettings();
-        public static string ConfigFile = Path.Combine(Directory.GetCurrentDirectory(), "Config", "config.json");
-
 
         public static GlobalSettings Load()
         {
             GlobalSettings settings;
+            var configFile = Path.Combine(Directory.GetCurrentDirectory(), "config.json");
 
-            if (File.Exists(ConfigFile)) {
-                SettingsToSave set;
-                //if the file exists, load the Settings
-                var input = File.ReadAllText(ConfigFile);
+            if (File.Exists(configFile))
+            {
+                //if the file exists, load the settings
+                var input = File.ReadAllText(configFile);
 
                 var jsonSettings = new JsonSerializerSettings();
-                jsonSettings.Converters.Add(new StringEnumConverter {CamelCaseText = true});
+                jsonSettings.Converters.Add(new StringEnumConverter { CamelCaseText = true });
                 jsonSettings.ObjectCreationHandling = ObjectCreationHandling.Replace;
                 jsonSettings.DefaultValueHandling = DefaultValueHandling.Populate;
-                set = JsonConvert.DeserializeObject<SettingsToSave>(input, jsonSettings);
-                settings = new GlobalSettings();
-                Port = set.Port;
-                //UseTrackemon = set.UseTrackemon;
-                UsePokeSpawns = set.UsePokeSpawns;
-                UsePokeSnipers = set.UsePokeSnipers;
-                UsePokezz = set.UsePokezz;
-                RemoveAfter = set.RemoveAfter;
-                ShowLimit = Math.Max(set.ShowLimit, 1);
-                PokeSnipers2Exe = set.PokeSnipers2Exe;
+
+                settings = JsonConvert.DeserializeObject<GlobalSettings>(input, jsonSettings);
             }
             else
             {
                 settings = new GlobalSettings();
             }
 
-            var firstRun = !File.Exists(ConfigFile);
-            Save();
+            var firstRun = !File.Exists(configFile);
 
-            if (firstRun
-                || Port == 0
+            settings.Save(configFile);
+
+            if (firstRun 
+                || settings.Port == 0 
+                || settings.ServerChannels == null
+                || (settings.useToken && string.IsNullOrEmpty(settings.DiscordToken))
+                || (!settings.useToken && string.IsNullOrEmpty(settings.DiscordUser))
                 )
             {
-                Log.Error($"Invalid configuration detected. \nPlease edit {ConfigFile} and try again");
+                Console.WriteLine($"Invalid configuration detected. \nPlease edit {configFile} and try again");
                 return null;
             }
+
             return settings;
         }
 
-        public static bool IsOneClickSnipeSupported()
+        public void Save(string fullPath)
         {
-            const string keyName = @"pokesniper2\Shell\Open\Command";
-            //return Registry.GetValue(keyName, valueName, null) == null;
-            using (var Key = Registry.ClassesRoot.OpenSubKey(keyName))
-            {
-                return Key != null;
-            }
-        }
+            var output = JsonConvert.SerializeObject(this, Formatting.Indented,
+                new StringEnumConverter { CamelCaseText = true });
 
-        public static void Save()
-        {
-            var output = JsonConvert.SerializeObject(new SettingsToSave(), Formatting.Indented,
-                new StringEnumConverter {CamelCaseText = true});
-
-            var folder = Path.GetDirectoryName(ConfigFile);
+            var folder = Path.GetDirectoryName(fullPath);
             if (folder != null && !Directory.Exists(folder))
             {
                 Directory.CreateDirectory(folder);
             }
-            File.WriteAllText(ConfigFile, output);
+
+            File.WriteAllText(fullPath, output);
         }
-
     }
 
-    public class SettingsToSave {
-        public int Port = GlobalSettings.Port;
-        public bool UsePokeSnipers = GlobalSettings.UsePokeSnipers;
-        //public bool UseTrackemon = GlobalSettings.UseTrackemon;
-        public bool UsePokezz = GlobalSettings.UsePokezz;
-        public bool UsePokeSpawns = GlobalSettings.UsePokeSpawns;
-
-        public string PokeSnipers2Exe = GlobalSettings.PokeSnipers2Exe;
-        public int RemoveAfter = GlobalSettings.RemoveAfter;
-        public int ShowLimit = Math.Max(GlobalSettings.ShowLimit, 1);
-
-    }
 }
