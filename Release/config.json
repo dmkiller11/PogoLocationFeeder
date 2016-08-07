@@ -1,0 +1,10 @@
+{
+  "ServerChannels": [
+    "coords_pokemonspots"
+  ],
+  "DiscordToken": "",
+  "Port": 16969,
+  "useToken": false,
+  "DiscordUser": "",
+  "DiscordPassword": ""
+}
